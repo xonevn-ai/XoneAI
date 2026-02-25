@@ -1,0 +1,5 @@
+framework: xoneaiagents
+services:
+  - ui
+  - chat
+  - realtime

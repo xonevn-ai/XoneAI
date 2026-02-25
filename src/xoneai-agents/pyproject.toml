@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xoneaiagents"
+version = "1.5.15"
+description = "Xone AI agents for completing complex tasks with Self Reflection Agents"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name="Daniel Do" }
+]
+dependencies = [
+    "pydantic>=2.10.0",
+    "rich",
+    "openai>=2.0.0",
+    "posthog>=3.0.0",
+    "aiohttp>=3.8.0"
+]
+
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.20.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "websockets>=12.0"
+]
+
+memory = [
+    "chromadb>=1.0.0",
+    "litellm>=1.81.0",
+]
+
+knowledge = [
+    "mem0ai>=0.1.0",
+    "chromadb>=1.0.0",
+    "markitdown[all]>=0.1.0",
+    "chonkie>=1.0.2"
+]
+
+# Graph memory support (includes Mem0 with graph capabilities)
+graph = [
+    "mem0ai[graph]>=0.1.0",
+    "chromadb>=1.0.0"
+]
+
+# Add LLM dependencies
+llm = [
+    "litellm>=1.81.0",
+    "pydantic>=2.10.0"
+]
+
+# Add API dependencies
+api = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0"
+]
+
+# AgentOS dependencies (alias for api + auth for deployment)
+os = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "PyJWT>=2.8.0"
+]
+
+# Telemetry dependencies
+telemetry = [
+    "posthog>=3.0.0"
+]
+
+# MongoDB dependencies
+mongodb = [
+    "pymongo>=4.6.3",
+    "motor>=3.4.0"
+]
+
+# Authentication dependencies
+auth = [
+    "PyJWT>=2.8.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart>=0.0.6"
+]
+
+# Combined features
+all = [
+    "xoneaiagents[memory]",
+    "xoneaiagents[knowledge]",
+    "xoneaiagents[graph]",
+    "xoneaiagents[llm]",
+    "xoneaiagents[mcp]",
+    "xoneaiagents[api]",
+    "xoneaiagents[telemetry]",
+    "xoneaiagents[mongodb]",
+    "xoneaiagents[auth]"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xoneaiagents*"]

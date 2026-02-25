@@ -1,0 +1,62 @@
+from xoneaiagents import AutoAgents
+from langchain_community.utilities.tavily_search import TavilySearchAPIWrapper
+
+def tavily(query: str):
+    api_wrapper = TavilySearchAPIWrapper()
+    results = api_wrapper.results(query=query, max_results=5)
+    return results
+    
+# Create AutoAgents instance
+agents = AutoAgentManager(
+    instructions="Search for information about AI Agents",
+    tools=[tavily],
+    process="sequential",
+    output="verbose",
+    max_agents=3  # Maximum number of agents to create
+)
+
+# Start the agents
+result = agents.start()
+print(result)
+
+##or
+
+from xoneaiagents import AutoAgents
+from xoneaiagents.tools import (
+    evaluate, solve_equation, convert_units,
+    calculate_statistics, calculate_financial
+)
+
+
+def get_stock_price(company_name: str) -> str:
+    """
+    Get the stock price of a company
+    
+    Args:
+        company_name (str): The name of the company
+        
+    Returns:
+        str: The stock price of the company
+    """
+
+    if company_name.lower() == "apple" or company_name.lower() == "aapl":
+        return f"The stock price of {company_name} is 100"
+    elif company_name.lower() == "google" or company_name.lower() == "googl":
+        return f"The stock price of {company_name} is 200"
+    else:
+        return f"The stock price of {company_name} is 50"
+
+# Create AutoAgents instance  
+agents = AutoAgentManager(
+    instructions="Get the stock price of google and compare it to the stock price of apple",
+    tools=[evaluate, get_stock_price],
+    process="sequential",
+    llm="gemini/gemini-2.5-flash-lite-preview-06-17",
+    reflection=False,
+    output="silent",
+    max_agents=3  # Maximum number of agents to create
+)
+
+# Start the agents
+result = agents.start()
+print(result)

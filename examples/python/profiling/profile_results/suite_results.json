@@ -1,0 +1,209 @@
+{
+  "timestamp": "2026-01-16T05:23:04.919943Z",
+  "metadata": {
+    "python_version": "3.12.11",
+    "platform": "macOS-26.3-arm64-arm-64bit",
+    "xoneai_version": "3.9.2",
+    "timestamp": "2026-01-16T05:23:04.932474Z"
+  },
+  "startup": {
+    "cold_ms": 27.866583000104583,
+    "warm_ms": 27.75670800019725
+  },
+  "import_analysis": [
+    {
+      "module": "xoneaiagents",
+      "self_us": 403,
+      "cumulative_us": 188329,
+      "self_ms": 0.403,
+      "cumulative_ms": 188.329
+    },
+    {
+      "module": "xoneaiagents.workflows",
+      "self_us": 106,
+      "cumulative_us": 112180,
+      "self_ms": 0.106,
+      "cumulative_ms": 112.18
+    },
+    {
+      "module": "xoneaiagents.workflows.yaml_parser",
+      "self_us": 217,
+      "cumulative_us": 107210,
+      "self_ms": 0.217,
+      "cumulative_ms": 107.21
+    },
+    {
+      "module": "xoneaiagents.agent.agent",
+      "self_us": 15,
+      "cumulative_us": 98811,
+      "self_ms": 0.015,
+      "cumulative_ms": 98.811
+    },
+    {
+      "module": "xoneaiagents.agent",
+      "self_us": 146,
+      "cumulative_us": 98796,
+      "self_ms": 0.146,
+      "cumulative_ms": 98.796
+    },
+    {
+      "module": "xoneaiagents.agent.agent",
+      "self_us": 1027,
+      "cumulative_us": 86223,
+      "self_ms": 1.027,
+      "cumulative_ms": 86.223
+    },
+    {
+      "module": "rich.logging",
+      "self_us": 282,
+      "cumulative_us": 53009,
+      "self_ms": 0.282,
+      "cumulative_ms": 53.009
+    },
+    {
+      "module": "xoneaiagents.main",
+      "self_us": 18784,
+      "cumulative_us": 45759,
+      "self_ms": 18.784,
+      "cumulative_ms": 45.759
+    },
+    {
+      "module": "xoneaiagents.llm.openai_client",
+      "self_us": 2470,
+      "cumulative_us": 28251,
+      "self_ms": 2.47,
+      "cumulative_ms": 28.251
+    },
+    {
+      "module": "rich.traceback",
+      "self_us": 1478,
+      "cumulative_us": 18788,
+      "self_ms": 1.478,
+      "cumulative_ms": 18.788
+    },
+    {
+      "module": "rich.console",
+      "self_us": 1737,
+      "cumulative_us": 18587,
+      "self_ms": 1.737,
+      "cumulative_ms": 18.587
+    },
+    {
+      "module": "pygments.lexers",
+      "self_us": 242,
+      "cumulative_us": 15427,
+      "self_ms": 0.242,
+      "cumulative_ms": 15.427
+    },
+    {
+      "module": "rich.markdown",
+      "self_us": 409,
+      "cumulative_us": 13987,
+      "self_ms": 0.409,
+      "cumulative_ms": 13.987
+    },
+    {
+      "module": "pygments.plugin",
+      "self_us": 85,
+      "cumulative_us": 13503,
+      "self_ms": 0.085,
+      "cumulative_ms": 13.503
+    },
+    {
+      "module": "importlib.metadata",
+      "self_us": 637,
+      "cumulative_us": 13419,
+      "self_ms": 0.637,
+      "cumulative_ms": 13.419
+    },
+    {
+      "module": "rich._log_render",
+      "self_us": 145,
+      "cumulative_us": 13380,
+      "self_ms": 0.145,
+      "cumulative_ms": 13.38
+    },
+    {
+      "module": "markdown_it",
+      "self_us": 172,
+      "cumulative_us": 13339,
+      "self_ms": 0.172,
+      "cumulative_ms": 13.339
+    },
+    {
+      "module": "rich.text",
+      "self_us": 582,
+      "cumulative_us": 13236,
+      "self_ms": 0.582,
+      "cumulative_ms": 13.236
+    },
+    {
+      "module": "markdown_it.main",
+      "self_us": 298,
+      "cumulative_us": 13168,
+      "self_ms": 0.298,
+      "cumulative_ms": 13.168
+    },
+    {
+      "module": "pydantic",
+      "self_us": 223,
+      "cumulative_us": 11119,
+      "self_ms": 0.223,
+      "cumulative_ms": 11.119
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "simple_query",
+      "config": {
+        "prompt": "What is 2+2?",
+        "model": "default",
+        "stream": false,
+        "iterations": 2
+      },
+      "import_time_stats": {
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "stdev": 0,
+        "median": 0
+      },
+      "total_time_stats": {
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "stdev": 0,
+        "median": 0
+      },
+      "first_token_stats": null,
+      "raw_import_times_ms": [],
+      "raw_total_times_ms": []
+    },
+    {
+      "name": "simple_stream",
+      "config": {
+        "prompt": "What is 2+2?",
+        "model": "default",
+        "stream": true,
+        "iterations": 2
+      },
+      "import_time_stats": {
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "stdev": 0,
+        "median": 0
+      },
+      "total_time_stats": {
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "stdev": 0,
+        "median": 0
+      },
+      "first_token_stats": null,
+      "raw_import_times_ms": [],
+      "raw_total_times_ms": []
+    }
+  ]
+}

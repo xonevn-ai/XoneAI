@@ -1,0 +1,17 @@
+"""Basic Agents (multi-agent) example with consolidated params."""
+from xoneaiagents import Agent, AgentTeam
+
+# Create agents
+writer = Agent(instructions="You write content.")
+editor = Agent(instructions="You edit content.")
+
+# Multi-agent with consolidated params
+agents = AgentTeam(
+    agents=[writer, editor],
+    memory=True,
+    planning=True,
+)
+
+if __name__ == "__main__":
+    result = agents.start("Write a haiku about AI")
+    print(result)

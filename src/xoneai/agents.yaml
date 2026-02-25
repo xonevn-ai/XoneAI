@@ -1,0 +1,27 @@
+framework: xoneai
+topic: --help
+roles:
+  file_reader:
+    backstory: A diligent agent skilled in parsing and extracting data from various
+      file types.
+    goal: Extract relevant information from the input file
+    role: File Reader
+    tasks:
+      read_task:
+        description: Read the contents of a specified file to retrieve necessary information.
+        expected_output: Extracted content from the file ready for processing.
+    tools:
+    - read_file
+  command_executor:
+    backstory: An experienced agent with expertise in command execution and automation.
+    goal: Execute commands based on the information gathered
+    role: Command Executor
+    tasks:
+      execute_task:
+        description: Take the extracted information and execute relevant commands,
+          logging outputs to a file.
+        expected_output: Execution results written to the output file.
+    tools:
+    - execute_command
+    - write_file
+dependencies: []

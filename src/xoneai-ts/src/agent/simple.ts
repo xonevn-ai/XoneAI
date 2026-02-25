@@ -1,0 +1,912 @@
+import { OpenAIService } from '../llm/openai';
+import { Logger } from '../utils/logger';
+import type { ChatCompletionTool } from 'openai/resources/chat/completions';
+import type { DbAdapter, DbMessage, DbRun } from '../db/types';
+import { randomUUID } from 'crypto';
+import type { LLMProvider } from '../llm/providers/types';
+import type { BackendResolutionResult } from '../llm/backend-resolver';
+
+/**
+ * Agent Configuration
+ * 
+ * The Agent class is the primary entry point for XoneAI.
+ * It supports both simple instruction-based agents and advanced configurations.
+ * 
+ * @example Simple usage (3 lines)
+ * ```typescript
+ * import { Agent } from 'xoneai';
+ * const agent = new Agent({ instructions: "You are helpful" });
+ * await agent.chat("Hello!");
+ * ```
+ * 
+ * @example With tools (5 lines)
+ * ```typescript
+ * const getWeather = (city: string) => `Weather in ${city}: 20°C`;
+ * const agent = new Agent({
+ *   instructions: "You provide weather info",
+ *   tools: [getWeather]
+ * });
+ * await agent.chat("Weather in Paris?");
+ * ```
+ * 
+ * @example With persistence (4 lines)
+ * ```typescript
+ * import { Agent, db } from 'xoneai';
+ * const agent = new Agent({
+ *   instructions: "You are helpful",
+ *   db: db("sqlite:./data.db"),
+ *   sessionId: "my-session"
+ * });
+ * await agent.chat("Hello!");
+ * ```
+ */
+export interface SimpleAgentConfig {
+  /** Agent instructions/system prompt (required) */
+  instructions: string;
+  /** Agent name (auto-generated if not provided) */
+  name?: string;
+  /** Enable verbose logging (default: true) */
+  verbose?: boolean;
+  /** Enable pretty output formatting */
+  pretty?: boolean;
+  /** 
+   * LLM model to use. Accepts:
+   * - Model name: "gpt-4o-mini", "claude-3-sonnet"
+   * - Provider/model: "openai/gpt-4o", "anthropic/claude-3"
+   * Default: "gpt-4o-mini"
+   */
+  llm?: string;
+  /** Enable markdown formatting in responses */
+  markdown?: boolean;
+  /** Enable streaming responses (default: true) */
+  stream?: boolean;
+  /** 
+   * Tools available to the agent.
+   * Can be plain functions (auto-schema) or OpenAI tool definitions.
+   */
+  tools?: any[] | Function[];
+  /** Map of tool function implementations */
+  toolFunctions?: Record<string, Function>;
+  /** Database adapter for persistence */
+  db?: DbAdapter;
+  /** Session ID for conversation persistence (auto-generated if not provided) */
+  sessionId?: string;
+  /** Run ID for tracing (auto-generated if not provided) */
+  runId?: string;
+  /** Max messages to restore from history (default: 100) */
+  historyLimit?: number;
+  /** Auto-restore conversation history from db (default: true) */
+  autoRestore?: boolean;
+  /** Auto-persist messages to db (default: true) */
+  autoPersist?: boolean;
+  /** Enable caching of responses */
+  cache?: boolean;
+  /** Cache TTL in seconds (default: 3600) */
+  cacheTTL?: number;
+  /** Enable telemetry tracking (default: false, opt-in) */
+  telemetry?: boolean;
+
+  // Advanced mode (role/goal/backstory) - for compatibility
+  /** Agent role (advanced mode) */
+  role?: string;
+  /** Agent goal (advanced mode) */
+  goal?: string;
+  /** Agent backstory (advanced mode) */
+  backstory?: string;
+}
+
+export class Agent {
+  private instructions: string;
+  public name: string;
+  private verbose: boolean;
+  private pretty: boolean;
+  private llm: string;
+  private markdown: boolean;
+  private stream: boolean;
+  private llmService: OpenAIService;
+  private tools?: any[];
+  private toolFunctions: Record<string, Function> = {};
+  private dbAdapter?: DbAdapter;
+  private sessionId: string;
+  private runId: string;
+  private messages: Array<{ role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string }> = [];
+  private dbInitialized: boolean = false;
+  private historyLimit: number;
+  private autoRestore: boolean;
+  private autoPersist: boolean;
+  private cache: boolean;
+  private cacheTTL: number;
+  private responseCache: Map<string, { response: string; timestamp: number }> = new Map();
+  private telemetryEnabled: boolean;
+
+  // AI SDK backend support
+  private _backend: LLMProvider | null = null;
+  private _backendPromise: Promise<BackendResolutionResult> | null = null;
+  private _backendSource: 'ai-sdk' | 'native' | 'custom' | 'legacy' = 'legacy';
+  private _useAISDKBackend: boolean = false;
+
+  constructor(config: SimpleAgentConfig) {
+    // Build instructions from either simple or advanced mode
+    if (config.instructions) {
+      this.instructions = config.instructions;
+    } else if (config.role || config.goal || config.backstory) {
+      // Advanced mode: construct instructions from role/goal/backstory
+      const parts: string[] = [];
+      if (config.role) parts.push(`You are a ${config.role}.`);
+      if (config.goal) parts.push(`Your goal is: ${config.goal}`);
+      if (config.backstory) parts.push(`Background: ${config.backstory}`);
+      this.instructions = parts.join('\n');
+    } else {
+      this.instructions = 'You are a helpful AI assistant.';
+    }
+
+    this.name = config.name || `Agent_${Math.random().toString(36).substr(2, 9)}`;
+    this.verbose = config.verbose ?? process.env.XONE_VERBOSE !== 'false';
+    this.pretty = config.pretty ?? process.env.XONE_PRETTY === 'true';
+    this.llm = config.llm || process.env.OPENAI_MODEL_NAME || process.env.XONEAI_MODEL || 'gpt-4o-mini';
+    this.markdown = config.markdown ?? true;
+    this.stream = config.stream ?? true;
+    this.tools = config.tools;
+    this.dbAdapter = config.db;
+    this.sessionId = config.sessionId || this.generateSessionId();
+    this.runId = config.runId || randomUUID();
+    this.historyLimit = config.historyLimit ?? 100;
+    this.autoRestore = config.autoRestore ?? true;
+    this.autoPersist = config.autoPersist ?? true;
+    this.cache = config.cache ?? false;
+    this.cacheTTL = config.cacheTTL ?? 3600;
+    this.telemetryEnabled = config.telemetry ?? false;
+
+    // Parse model string to extract provider and model ID
+    // Format: "provider/model" or just "model"
+    const providerId = this.llm.includes('/') ? this.llm.split('/')[0] : 'openai';
+    const modelId = this.llm.includes('/') ? this.llm.split('/').slice(1).join('/') : this.llm;
+
+    // For OpenAI, use OpenAIService directly for backward compatibility
+    // For other providers, we'll use the AI SDK backend via getBackend()
+    this._useAISDKBackend = providerId !== 'openai';
+    this.llmService = new OpenAIService(modelId);
+
+    // Configure logging
+    Logger.setVerbose(this.verbose);
+    Logger.setPretty(this.pretty);
+
+    // Process tools array - handle both tool definitions and functions
+    if (config.tools && Array.isArray(config.tools)) {
+      // Convert tools array to proper format if it contains functions
+      const processedTools: any[] = [];
+
+      for (let i = 0; i < config.tools.length; i++) {
+        const tool = config.tools[i];
+
+        if (typeof tool === 'function') {
+          // If it's a function, extract its name and register it
+          const funcName = tool.name || `function_${i}`;
+
+          // Skip functions with empty names
+          if (funcName && funcName.trim() !== '') {
+            this.registerToolFunction(funcName, tool);
+
+            // Auto-generate tool definition
+            this.addAutoGeneratedToolDefinition(funcName, tool);
+          } else {
+            // Generate a random name for functions without names
+            const randomName = `function_${Math.random().toString(36).substring(2, 9)}`;
+            this.registerToolFunction(randomName, tool);
+
+            // Auto-generate tool definition
+            this.addAutoGeneratedToolDefinition(randomName, tool);
+          }
+        } else if (tool && typeof tool === 'object' && typeof tool.execute === 'function' && tool.name) {
+          // If it's a FunctionTool instance (has execute method and name)
+          const funcName = tool.name;
+
+          // Register the execute function with args as object (not spread)
+          this.registerToolFunction(funcName, async (args: any) => {
+            return tool.execute(args);
+          });
+
+          // Add the tool definition from FunctionTool
+          processedTools.push(tool.toOpenAITool ? tool.toOpenAITool() : {
+            type: 'function',
+            function: {
+              name: tool.name,
+              description: tool.description || `Function ${tool.name}`,
+              parameters: tool.parameters || { type: 'object', properties: {} },
+            }
+          });
+        } else {
+          // If it's already a tool definition, add it as is
+          processedTools.push(tool);
+        }
+      }
+
+      // Add any pre-defined tool definitions
+      if (processedTools.length > 0) {
+        this.tools = this.tools || [];
+        this.tools.push(...processedTools);
+      }
+    }
+
+    // Register directly provided tool functions if any
+    if (config.toolFunctions) {
+      for (const [name, func] of Object.entries(config.toolFunctions)) {
+        this.registerToolFunction(name, func);
+
+        // Auto-generate tool definition if not already provided
+        if (!this.hasToolDefinition(name)) {
+          this.addAutoGeneratedToolDefinition(name, func);
+        }
+      }
+    }
+  }
+
+  /**
+   * Generate a unique session ID based on current hour, agent name, and random suffix
+   */
+  private generateSessionId(): string {
+    const now = new Date();
+    const hourStr = now.toISOString().slice(0, 13).replace(/[-T:]/g, '');
+    const hash = this.name ? this.name.slice(0, 6) : 'agent';
+    const randomSuffix = randomUUID().slice(0, 8);
+    return `${hourStr}-${hash}-${randomSuffix}`;
+  }
+
+  /**
+   * Initialize DB session - restore history on first chat (lazy)
+   */
+  private async initDbSession(): Promise<void> {
+    if (this.dbInitialized || !this.dbAdapter || !this.autoRestore) return;
+
+    try {
+      // Restore previous messages from DB
+      const history = await this.dbAdapter.getMessages(this.sessionId, this.historyLimit);
+      if (history.length > 0) {
+        this.messages = history.map(m => ({
+          role: m.role,
+          content: m.content
+        }));
+        Logger.debug(`Restored ${history.length} messages from session ${this.sessionId}`);
+      }
+    } catch (error) {
+      Logger.warn('Failed to initialize DB session:', error);
+    }
+
+    this.dbInitialized = true;
+  }
+
+  /**
+   * Get cached response if available and not expired
+   */
+  private getCachedResponse(prompt: string): string | null {
+    if (!this.cache) return null;
+
+    const cacheKey = `${this.sessionId}:${prompt}`;
+    const cached = this.responseCache.get(cacheKey);
+
+    if (cached) {
+      const age = (Date.now() - cached.timestamp) / 1000;
+      if (age < this.cacheTTL) {
+        Logger.debug('Cache hit for prompt');
+        return cached.response;
+      }
+      // Expired, remove it
+      this.responseCache.delete(cacheKey);
+    }
+    return null;
+  }
+
+  /**
+   * Cache a response
+   */
+  private cacheResponse(prompt: string, response: string): void {
+    if (!this.cache) return;
+
+    const cacheKey = `${this.sessionId}:${prompt}`;
+    this.responseCache.set(cacheKey, { response, timestamp: Date.now() });
+  }
+
+  private createSystemPrompt(): string {
+    let prompt = this.instructions;
+    if (this.markdown) {
+      prompt += '\nPlease format your response in markdown.';
+    }
+    return prompt;
+  }
+
+  /**
+   * Register a tool function that can be called by the model
+   * @param name Function name
+   * @param fn Function implementation
+   */
+  registerToolFunction(name: string, fn: Function): void {
+    this.toolFunctions[name] = fn;
+    Logger.debug(`Registered tool function: ${name}`);
+  }
+
+  /**
+   * Check if a tool definition exists for the given function name
+   * @param name Function name
+   * @returns True if a tool definition exists
+   */
+  private hasToolDefinition(name: string): boolean {
+    if (!this.tools) return false;
+
+    return this.tools.some(tool => {
+      if (tool.type === 'function' && tool.function) {
+        return tool.function.name === name;
+      }
+      return false;
+    });
+  }
+
+  /**
+   * Auto-generate a tool definition based on the function
+   * @param name Function name
+   * @param func Function implementation
+   */
+  private addAutoGeneratedToolDefinition(name: string, func: Function): void {
+    if (!this.tools) {
+      this.tools = [];
+    }
+
+    // Ensure we have a valid function name
+    const functionName = name || func.name || `function_${Math.random().toString(36).substring(2, 9)}`;
+
+    // Extract parameter names from function
+    const funcStr = func.toString();
+    const paramMatch = funcStr.match(/\(([^)]*)\)/);
+    const params = paramMatch ? paramMatch[1].split(',').map(p => p.trim()).filter(p => p) : [];
+
+    // Create a basic tool definition
+    const toolDef = {
+      type: "function",
+      function: {
+        name: functionName,
+        description: `Auto-generated function for ${functionName}`,
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [] as string[]
+        }
+      }
+    };
+
+    // Add parameters to the definition
+    if (params.length > 0) {
+      const properties: Record<string, any> = {};
+      const required: string[] = [];
+
+      params.forEach(param => {
+        // Remove type annotations if present
+        const paramName = param.split(':')[0].trim();
+        if (paramName) {
+          properties[paramName] = {
+            type: "string",
+            description: `Parameter ${paramName} for function ${name}`
+          };
+          required.push(paramName);
+        }
+      });
+
+      toolDef.function.parameters.properties = properties;
+      toolDef.function.parameters.required = required;
+    }
+
+    this.tools.push(toolDef);
+    Logger.debug(`Auto-generated tool definition for ${functionName}`);
+  }
+
+  /**
+   * Process tool calls from the model
+   * @param toolCalls Tool calls from the model
+   * @returns Array of tool results
+   */
+  private async processToolCalls(toolCalls: Array<any>): Promise<Array<{ role: string, tool_call_id: string, content: string }>> {
+    const results = [];
+
+    for (const toolCall of toolCalls) {
+      const { id, function: { name, arguments: argsString } } = toolCall;
+      await Logger.debug(`Processing tool call: ${name}`, { arguments: argsString });
+
+      try {
+        // Parse arguments
+        const args = JSON.parse(argsString);
+
+        // Check if function exists
+        if (!this.toolFunctions[name]) {
+          throw new Error(`Function ${name} not registered`);
+        }
+
+        // Call the function - pass args as object (for FunctionTool) or spread (for legacy functions)
+        const result = await this.toolFunctions[name](args);
+
+        // Add result to messages
+        results.push({
+          role: 'tool',
+          tool_call_id: id,
+          content: result.toString()
+        });
+
+        await Logger.debug(`Tool call result for ${name}:`, { result });
+      } catch (error: any) {
+        await Logger.error(`Error executing tool ${name}:`, error);
+        results.push({
+          role: 'tool',
+          tool_call_id: id,
+          content: `Error: ${error.message || 'Unknown error'}`
+        });
+      }
+    }
+
+    return results;
+  }
+
+  async start(prompt: string, previousResult?: string): Promise<string> {
+    await Logger.debug(`Agent ${this.name} starting with prompt: ${prompt}`);
+
+    try {
+      // Replace placeholder with previous result if available
+      if (previousResult) {
+        prompt = prompt.replace('{{previous}}', previousResult);
+      }
+
+      // Initialize messages array with system prompt and conversation history
+      const messages: Array<any> = [
+        { role: 'system', content: this.createSystemPrompt() }
+      ];
+
+      // Add conversation history (excluding the current prompt which will be added below)
+      for (const msg of this.messages) {
+        if (msg.role && msg.content) {
+          messages.push({ role: msg.role, content: msg.content });
+        }
+      }
+
+      // Add current user prompt
+      messages.push({ role: 'user', content: prompt });
+
+      let finalResponse = '';
+
+      // Use AI SDK backend for non-OpenAI providers
+      if (this._useAISDKBackend) {
+        const backend = await this.getBackend();
+
+        if (this.stream && !this.tools) {
+          // Streaming with AI SDK backend
+          const stream = await backend.streamText({
+            messages,
+            temperature: 0.7
+          });
+
+          let accumulated = '';
+          for await (const chunk of stream) {
+            if (chunk.text) {
+              process.stdout.write(chunk.text);
+              accumulated += chunk.text;
+            }
+          }
+          finalResponse = accumulated;
+        } else {
+          // Non-streaming with AI SDK backend
+          const result = await backend.generateText({
+            messages,
+            temperature: 0.7
+          });
+          finalResponse = result.text;
+        }
+      } else if (this.stream && !this.tools) {
+        // Use streaming with full conversation history (OpenAI)
+        finalResponse = await this.llmService.streamChat(
+          messages,
+          0.7,
+          (token: string) => {
+            process.stdout.write(token);
+          }
+        );
+      } else if (this.tools) {
+        // Use tools (non-streaming for now to simplify implementation)
+        let continueConversation = true;
+        let iterations = 0;
+        const maxIterations = 5; // Prevent infinite loops
+
+        while (continueConversation && iterations < maxIterations) {
+          iterations++;
+
+          // Get response from LLM
+          const response = await this.llmService.generateChat(messages, 0.7, this.tools);
+
+          // Add assistant response to messages
+          messages.push({
+            role: 'assistant',
+            content: response.content || '',
+            tool_calls: response.tool_calls
+          });
+
+          // Check if there are tool calls to process
+          if (response.tool_calls && response.tool_calls.length > 0) {
+            // Process tool calls
+            const toolResults = await this.processToolCalls(response.tool_calls);
+
+            // Add tool results to messages
+            messages.push(...toolResults);
+
+            // Continue conversation to get final response
+            continueConversation = true;
+          } else {
+            // No tool calls, we have our final response
+            finalResponse = response.content || '';
+            continueConversation = false;
+          }
+        }
+
+        if (iterations >= maxIterations) {
+          await Logger.warn(`Reached maximum iterations (${maxIterations}) for tool calls`);
+        }
+      } else {
+        // Use regular text generation without streaming
+        const response = await this.llmService.generateText(
+          prompt,
+          this.createSystemPrompt()
+        );
+        finalResponse = response;
+      }
+
+      return finalResponse;
+    } catch (error) {
+      await Logger.error('Error in agent execution', error);
+      throw error;
+    }
+  }
+
+  async chat(prompt: string, previousResult?: string): Promise<string> {
+    // Lazy init: restore history on first chat (like Python SDK)
+    await this.initDbSession();
+
+    // Check cache first
+    const cached = this.getCachedResponse(prompt);
+    if (cached) {
+      return cached;
+    }
+
+    // Add user message to conversation history
+    this.messages.push({ role: 'user', content: prompt });
+
+    // Persist user message if db is configured and autoPersist is enabled
+    if (this.dbAdapter && this.autoPersist) {
+      await this.persistMessage('user', prompt);
+    }
+
+    const response = await this.start(prompt, previousResult);
+
+    // Add assistant response to history
+    this.messages.push({ role: 'assistant', content: response });
+
+    // Persist assistant response if db is configured and autoPersist is enabled
+    if (this.dbAdapter && this.autoPersist) {
+      await this.persistMessage('assistant', response);
+    }
+
+    // Cache the response
+    this.cacheResponse(prompt, response);
+
+    return response;
+  }
+
+  async execute(previousResult?: string): Promise<string> {
+    // For backward compatibility and multi-agent support
+    return this.start(this.instructions, previousResult);
+  }
+
+  /**
+   * Persist a message to the database
+   */
+  private async persistMessage(role: 'user' | 'assistant' | 'system' | 'tool', content: string): Promise<void> {
+    if (!this.dbAdapter) return;
+
+    try {
+      const message: DbMessage = {
+        id: randomUUID(),
+        sessionId: this.sessionId,
+        runId: this.runId,
+        role,
+        content,
+        createdAt: Date.now()
+      };
+      await this.dbAdapter.saveMessage(message);
+    } catch (error) {
+      await Logger.warn('Failed to persist message:', error);
+    }
+  }
+
+  /**
+   * Get the session ID for this agent
+   */
+  getSessionId(): string {
+    return this.sessionId;
+  }
+
+  /**
+   * Get the run ID for this agent
+   */
+  getRunId(): string {
+    return this.runId;
+  }
+
+  getResult(): string | null {
+    return null;
+  }
+
+  getInstructions(): string {
+    return this.instructions;
+  }
+
+  /**
+   * Get conversation history
+   */
+  getHistory(): Array<{ role: string; content: string | null }> {
+    return [...this.messages];
+  }
+
+  /**
+   * Clear conversation history (in memory and optionally in DB)
+   */
+  async clearHistory(clearDb: boolean = true): Promise<void> {
+    this.messages = [];
+    if (clearDb && this.dbAdapter) {
+      try {
+        await this.dbAdapter.deleteMessages(this.sessionId);
+        Logger.debug(`Cleared history for session ${this.sessionId}`);
+      } catch (error) {
+        Logger.warn('Failed to clear DB history:', error);
+      }
+    }
+  }
+
+  /**
+   * Clear response cache
+   */
+  clearCache(): void {
+    this.responseCache.clear();
+  }
+
+  /**
+   * Get the resolved backend (AI SDK preferred, native fallback)
+   * Lazy initialization - backend is only resolved on first use
+   */
+  async getBackend(): Promise<LLMProvider> {
+    if (this._backend) {
+      return this._backend;
+    }
+
+    if (!this._backendPromise) {
+      this._backendPromise = (async () => {
+        const { resolveBackend } = await import('../llm/backend-resolver');
+        const result = await resolveBackend(this.llm, {
+          attribution: {
+            agentId: this.name,
+            runId: this.runId,
+            sessionId: this.sessionId,
+          },
+        });
+        this._backend = result.provider;
+        this._backendSource = result.source;
+        Logger.debug(`Agent ${this.name} using ${result.source} backend for ${this.llm}`);
+        return result;
+      })();
+    }
+
+    const result = await this._backendPromise;
+    return result.provider;
+  }
+
+  /**
+   * Get the backend source (ai-sdk, native, custom, or legacy)
+   */
+  getBackendSource(): 'ai-sdk' | 'native' | 'custom' | 'legacy' {
+    return this._backendSource;
+  }
+
+  /**
+   * Embed text using AI SDK (preferred) or native provider
+   * 
+   * @param text - Text to embed (string or array of strings)
+   * @param options - Embedding options
+   * @returns Embedding vector(s)
+   * 
+   * @example Single text
+   * ```typescript
+   * const embedding = await agent.embed("Hello world");
+   * ```
+   * 
+   * @example Multiple texts
+   * ```typescript
+   * const embeddings = await agent.embed(["Hello", "World"]);
+   * ```
+   */
+  async embed(text: string | string[], options?: { model?: string }): Promise<number[] | number[][]> {
+    const { embed, embedMany } = await import('../llm/embeddings');
+
+    if (Array.isArray(text)) {
+      const result = await embedMany(text, { model: options?.model });
+      return result.embeddings;
+    } else {
+      const result = await embed(text, { model: options?.model });
+      return result.embedding;
+    }
+  }
+
+  /**
+   * Get the model string for this agent
+   */
+  getModel(): string {
+    return this.llm;
+  }
+}
+
+/**
+ * Configuration for multi-agent orchestration
+ */
+export interface AgentTeamConfig {
+  agents: Agent[];
+  tasks?: string[];
+  verbose?: boolean;
+  pretty?: boolean;
+  process?: 'sequential' | 'parallel';
+}
+
+/**
+ * @deprecated Use AgentTeamConfig instead. This is a silent alias for backward compatibility.
+ */
+export type XoneAIAgentsConfig = AgentTeamConfig;
+
+/**
+ * @deprecated Use AgentTeamConfig instead. This is a silent alias for backward compatibility.
+ */
+export interface AgentsConfig {
+  agents: Agent[];
+  tasks?: string[];
+  verbose?: boolean;
+  pretty?: boolean;
+  process?: 'sequential' | 'parallel';
+}
+
+/**
+ * Multi-agent orchestration class
+ * 
+ * @example Simple array syntax
+ * ```typescript
+ * import { Agent, Agents } from 'xoneai';
+ * 
+ * const researcher = new Agent({ instructions: "Research the topic" });
+ * const writer = new Agent({ instructions: "Write based on research" });
+ * 
+ * const agents = new Agents([researcher, writer]);
+ * await agents.start();
+ * ```
+ * 
+ * @example Config object syntax
+ * ```typescript
+ * const agents = new Agents({
+ *   agents: [researcher, writer],
+ *   process: 'parallel'
+ * });
+ * ```
+ */
+export class AgentTeam {
+  private agents: Agent[];
+  private tasks: string[];
+  private verbose: boolean;
+  private pretty: boolean;
+  private process: 'sequential' | 'parallel';
+
+  /**
+   * Create a multi-agent orchestration
+   * @param configOrAgents - Either an array of agents or a config object
+   */
+  constructor(configOrAgents: AgentTeamConfig | Agent[]) {
+    // Support array syntax: new AgentTeam([a1, a2])
+    const config: AgentTeamConfig = Array.isArray(configOrAgents)
+      ? { agents: configOrAgents }
+      : configOrAgents;
+
+    this.agents = config.agents;
+    this.verbose = config.verbose ?? process.env.XONE_VERBOSE !== 'false';
+    this.pretty = config.pretty ?? process.env.XONE_PRETTY === 'true';
+    this.process = config.process || 'sequential';
+
+    // Auto-generate tasks if not provided
+    this.tasks = config.tasks || this.generateTasks();
+
+    // Configure logging
+    Logger.setVerbose(this.verbose);
+    Logger.setPretty(this.pretty);
+  }
+
+  private generateTasks(): string[] {
+    return this.agents.map(agent => {
+      const instructions = agent.getInstructions();
+      // Extract task from instructions - get first sentence or whole instruction if no period
+      const task = instructions.split('.')[0].trim();
+      return task;
+    });
+  }
+
+  private async executeSequential(): Promise<string[]> {
+    const results: string[] = [];
+    let previousResult: string | undefined;
+
+    for (let i = 0; i < this.agents.length; i++) {
+      const agent = this.agents[i];
+      const task = this.tasks[i];
+
+      await Logger.debug(`Running agent ${i + 1}: ${agent.name}`);
+      await Logger.debug(`Task: ${task}`);
+
+      // For first agent, use task directly
+      // For subsequent agents, append previous result to their instructions
+      const prompt = i === 0 ? task : `${task}\n\nHere is the input: ${previousResult}`;
+      const result = await agent.start(prompt, previousResult);
+      results.push(result);
+      previousResult = result;
+    }
+
+    return results;
+  }
+
+  async start(): Promise<string[]> {
+    await Logger.debug('Starting AgentTeam execution...');
+    await Logger.debug('Process mode:', this.process);
+    await Logger.debug('Tasks:', this.tasks);
+
+    let results: string[];
+
+    if (this.process === 'parallel') {
+      // Run all agents in parallel
+      const promises = this.agents.map((agent, i) => {
+        const task = this.tasks[i];
+        return agent.start(task);
+      });
+      results = await Promise.all(promises);
+    } else {
+      // Run agents sequentially (default)
+      results = await this.executeSequential();
+    }
+
+    if (this.verbose) {
+      await Logger.info('AgentTeam execution completed.');
+      for (let i = 0; i < results.length; i++) {
+        await Logger.section(`Result from Agent ${i + 1}`, results[i]);
+      }
+    }
+
+    return results;
+  }
+
+  async chat(): Promise<string[]> {
+    return this.start();
+  }
+}
+
+/**
+ * XoneAIAgents - Silent alias for AgentTeam (backward compatibility)
+ * @deprecated Use AgentTeam instead
+ */
+export const XoneAIAgents = AgentTeam;
+
+/**
+ * Agents - Silent alias for AgentTeam (backward compatibility)
+ * @deprecated Use AgentTeam instead
+ * 
+ * @example
+ * ```typescript
+ * import { Agent, AgentTeam } from 'xoneai';
+ * 
+ * const team = new AgentTeam([
+ *   new Agent({ instructions: "Research the topic" }),
+ *   new Agent({ instructions: "Write based on research" })
+ * ]);
+ * await team.start();
+ * ```
+ */
+export const Agents = AgentTeam;

@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # XoneAI UI Service
+  ui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ui
+    volumes:
+      - xone_data:/root/.xone
+      - .:/app
+    ports:
+      - "8082:8082"
+    environment:
+      FLASK_ENV: development
+      CHAINLIT_PORT: "8082"
+      CHAINLIT_HOST: "0.0.0.0"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET}
+      XONE_CONFIG_DIR: /root/.xone
+      CHAINLIT_CONFIG_DIR: /root/.xone
+      CHAINLIT_DB_DIR: /root/.xone
+    command: xoneai ui --host 0.0.0.0
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - xone_network
+
+  # XoneAI Chat Service
+  chat:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.chat
+    volumes:
+      - xone_data:/root/.xone
+      - .:/app
+    ports:
+      - "8083:8083"
+    environment:
+      CHAINLIT_PORT: "8083"
+      CHAINLIT_HOST: "0.0.0.0"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET}
+      XONE_CONFIG_DIR: /root/.xone
+      CHAINLIT_CONFIG_DIR: /root/.xone
+      CHAINLIT_DB_DIR: /root/.xone
+    command: xoneai chat --host 0.0.0.0 --port 8083
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8083" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - xone_network
+
+  # XoneAI API Service
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - xone_data:/root/.xone
+    ports:
+      - "8080:8080"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      XONE_CONFIG_DIR: /root/.xone
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - xone_network
+
+  # XoneAI Agents Service (standalone)
+  agents:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.xoneaiagents
+    volumes:
+      - xone_data:/root/.xone
+      - ./examples:/app/examples
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      XONE_CONFIG_DIR: /root/.xone
+    networks:
+      - xone_network
+  # For bot services (Slack, Discord, Telegram), see docker/bots/
+
+volumes:
+  xone_data:
+    driver: local
+
+networks:
+  xone_network:
+    driver: bridge

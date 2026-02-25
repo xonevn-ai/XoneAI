@@ -1,0 +1,163 @@
+[project]
+name = "XoneAI"
+dynamic = ["version"]
+description = "XoneAI is an AI Agents Framework with Self Reflection. XoneAI application combines XoneAI Agents, AutoGen, and CrewAI into a low-code solution for building and managing multi-agent LLM systems, focusing on simplicity, customisation, and efficient human-agent collaboration."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10,<3.13"
+authors = [
+    { name = "Daniel Do" }
+]
+dependencies = [
+    "rich>=13.7",
+    "markdown>=3.5",
+    "pyparsing>=3.0.0",
+    "xoneaiagents>=1.5.15",
+    "python-dotenv>=0.19.0",
+    "litellm>=1.81.0",
+    "PyYAML>=6.0",
+    "mcp>=1.20.0",
+    "typer>=0.9.0",
+    "textual>=0.47.0",
+]
+
+[project.scripts]
+xoneai = "xoneai.__main__:main"
+setup-conda-env = "xoneai.setup.setup_conda_env:main"
+xoneai-call = "xoneai.api.call:main"
+
+[project.optional-dependencies]
+ui = [
+    "chainlit>=2.8.5,<=2.9.4",
+    "sqlalchemy>=2.0.36",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.0.3"
+]
+gradio = ["gradio>=4.26.0"]
+api = [
+    "flask>=3.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "sse-starlette>=1.6.0"
+]
+os = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "PyJWT>=2.8.0",
+    "sse-starlette>=1.6.0"
+]
+agentops = ["agentops>=0.3.12"]
+chat = [
+    "chainlit>=2.8.5,<=2.9.4",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.0.3",
+    "tavily-python==0.5.0",
+    "crawl4ai>=0.7.0",
+    "sqlalchemy>=2.0.36",
+    "playwright>=1.47.0",
+    "rich"
+]
+code = [
+    "chainlit>=2.8.5,<=2.9.4",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.0.3",
+    "tavily-python==0.5.0",
+    "crawl4ai>=0.7.0",
+    "sqlalchemy>=2.0.36",
+    "playwright>=1.47.0"
+]
+realtime = [
+    "chainlit>=2.8.5,<=2.9.4",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.0.3",
+    "tavily-python==0.5.0",
+    "crawl4ai>=0.7.0",
+    "websockets>=12.0",
+    "plotly>=5.24.0",
+    "yfinance>=0.2.44",
+    "ddgs>=8.0.0",
+    "sqlalchemy>=2.0.36"
+]
+call = [
+    "twilio>=7.0.0",
+    "fastapi>=0.95.0",
+    "uvicorn>=0.20.0",
+    "websockets>=12.0",
+    "flaml[automl]>=2.3.1",
+    "pyngrok>=1.4.0",
+    "rich"
+]
+train = []
+crewai = ["crewai>=0.157.0", "xoneai-tools>=0.1.0"]
+autogen = ["pyautogen==0.2.29", "xoneai-tools>=0.1.0", "crewai"]
+autogen-v4 = [
+    "autogen-agentchat>=0.4.0", 
+    "autogen-ext[openai]>=0.4.0", 
+    "autogen-core>=0.4.0",
+    "xoneai-tools>=0.1.0", 
+    "crewai"
+]
+acp = [
+    "agent-client-protocol>=0.7.0",
+]
+lite = [
+    # Minimal installation without TUI, litellm - just core agent functionality
+    # Use: pip install xoneai[lite] for lightweight deployments
+]
+all = [
+    # Full installation with all main features
+    "chainlit>=2.8.5,<=2.9.4",
+    "sqlalchemy>=2.0.36",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.0.3",
+    "gradio>=4.26.0",
+    "flask>=3.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "sse-starlette>=1.6.0",
+    "tavily-python==0.5.0",
+    "crawl4ai>=0.7.0",
+    "playwright>=1.47.0",
+    "websockets>=12.0",
+    "plotly>=5.24.0",
+    "yfinance>=0.2.44",
+    "ddgs>=8.0.0",
+]
+bot = [
+    # Dependencies for Telegram, Discord, Slack, and WhatsApp bots
+    "python-telegram-bot>=20.0",
+    "discord.py>=2.0.0",
+    "slack_sdk>=3.0.0",
+    "slack-bolt>=1.18.0",
+    "brotlicffi>=1.0.0",
+    "aiohttp>=3.8.0",
+]
+bot-whatsapp-web = [
+    # WhatsApp Web mode (experimental, token-free via QR scan)
+    "neonize>=0.3.14",
+    "qrcode>=7.0",
+]
+dev = [
+    "textual-dev>=1.0.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.urls]
+Homepage = "https://docs.xone.ai"
+Repository = "https://github.com/xonevn-ai/XoneAI"
+
+[tool.uv]
+# Exclude neonize from lock resolution; it conflicts with autogen-core (protobuf version)
+override-dependencies = ["neonize ; sys_platform == 'never'"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "xoneai.version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xoneai*"]

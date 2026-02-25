@@ -1,0 +1,25 @@
+from pydantic import BaseModel
+from xoneaiagents import Agent, Task, AgentTeam
+
+class Recipe(BaseModel):
+    recipe_name: str
+    ingredients: list[str]
+
+agent = Agent(
+    name="Chef",
+    role="Recipe Creator",
+    llm="gemini/gemini-2.5-flash"
+)
+
+task = Task(
+    description="Create a cookie recipe",
+    agent=agent,
+    output_pydantic=Recipe  # Will use Gemini's native structured output!
+)
+
+agents = AgentTeam(
+    agents=[agent],
+    tasks=[task]
+)
+
+agents.start()

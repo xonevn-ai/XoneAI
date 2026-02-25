@@ -1,0 +1,437 @@
+"""
+Plugin Manager for XoneAI Agents.
+
+Provides dynamic plugin discovery, loading, and lifecycle management.
+Thread-safe and async-safe for multi-agent environments.
+"""
+
+import asyncio
+import importlib.util
+import logging
+import sys
+import threading
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from .plugin import Plugin, PluginHook, PluginInfo, FunctionPlugin
+
+logger = logging.getLogger(__name__)
+
+
+class PluginManager:
+    """
+    Manages plugin discovery, loading, and execution.
+    
+    Thread-safe for concurrent access in multi-agent environments.
+    Supports both sync and async hook execution.
+    
+    Example:
+        manager = PluginManager()
+        
+        # Load plugins from directory
+        manager.load_from_directory("./plugins")
+        
+        # Register a plugin directly
+        manager.register(MyPlugin())
+        
+        # Execute hooks (sync)
+        args = manager.execute_hook(PluginHook.BEFORE_TOOL, "bash", {"cmd": "ls"})
+        
+        # Execute hooks (async)
+        args = await manager.async_execute_hook(PluginHook.BEFORE_TOOL, "bash", {"cmd": "ls"})
+    """
+    
+    def __init__(self):
+        self._plugins: Dict[str, Plugin] = {}
+        self._enabled: Dict[str, bool] = {}
+        self._single_file_plugins: Dict[str, Dict[str, Any]] = {}  # WordPress-style plugins
+        self._lock = threading.RLock()  # Thread safety for multi-agent environments
+    
+    def register(self, plugin: Plugin) -> bool:
+        """
+        Register a plugin.
+        
+        Args:
+            plugin: The plugin to register
+            
+        Returns:
+            True if registered successfully
+        """
+        try:
+            info = plugin.info
+            if info.name in self._plugins:
+                logger.warning(f"Plugin '{info.name}' already registered")
+                return False
+            
+            self._plugins[info.name] = plugin
+            self._enabled[info.name] = True
+            
+            # Initialize plugin
+            plugin.on_init({})
+            
+            logger.info(f"Registered plugin: {info.name} v{info.version}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to register plugin: {e}")
+            return False
+    
+    def unregister(self, name: str) -> bool:
+        """
+        Unregister a plugin.
+        
+        Args:
+            name: The plugin name
+            
+        Returns:
+            True if unregistered successfully
+        """
+        if name not in self._plugins:
+            return False
+        
+        try:
+            plugin = self._plugins[name]
+            plugin.on_shutdown()
+        except Exception as e:
+            logger.warning(f"Error during plugin shutdown: {e}")
+        
+        del self._plugins[name]
+        del self._enabled[name]
+        
+        logger.info(f"Unregistered plugin: {name}")
+        return True
+    
+    def enable(self, name: str) -> bool:
+        """Enable a plugin."""
+        if name in self._enabled:
+            self._enabled[name] = True
+            return True
+        return False
+    
+    def disable(self, name: str) -> bool:
+        """Disable a plugin."""
+        if name in self._enabled:
+            self._enabled[name] = False
+            return True
+        return False
+    
+    def is_enabled(self, name: str) -> bool:
+        """Check if a plugin is enabled."""
+        return self._enabled.get(name, False)
+    
+    def get_plugin(self, name: str) -> Optional[Plugin]:
+        """Get a plugin by name."""
+        return self._plugins.get(name)
+    
+    def list_plugins(self) -> List[PluginInfo]:
+        """List all registered plugins."""
+        return [p.info for p in self._plugins.values()]
+    
+    def load_from_directory(self, directory: str) -> int:
+        """
+        Load plugins from a directory.
+        
+        Looks for Python files with a `create_plugin` function
+        or classes that inherit from Plugin.
+        
+        Args:
+            directory: Path to the plugins directory
+            
+        Returns:
+            Number of plugins loaded
+        """
+        directory = Path(directory)
+        if not directory.exists():
+            logger.warning(f"Plugin directory does not exist: {directory}")
+            return 0
+        
+        loaded = 0
+        
+        for file_path in directory.glob("*.py"):
+            if file_path.name.startswith("_"):
+                continue
+            
+            try:
+                plugin = self._load_plugin_file(file_path)
+                if plugin and self.register(plugin):
+                    loaded += 1
+            except Exception as e:
+                logger.error(f"Failed to load plugin from {file_path}: {e}")
+        
+        return loaded
+    
+    def _load_plugin_file(self, file_path: Path) -> Optional[Plugin]:
+        """Load a plugin from a Python file."""
+        module_name = f"xone_plugin_{file_path.stem}"
+        
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None or spec.loader is None:
+            return None
+        
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:
+            logger.error(f"Error loading module {file_path}: {e}")
+            del sys.modules[module_name]
+            return None
+        
+        # Look for create_plugin function
+        if hasattr(module, "create_plugin"):
+            return module.create_plugin()
+        
+        # Look for Plugin subclass
+        for name in dir(module):
+            obj = getattr(module, name)
+            if (
+                isinstance(obj, type)
+                and issubclass(obj, Plugin)
+                and obj is not Plugin
+                and obj is not FunctionPlugin
+            ):
+                return obj()
+        
+        return None
+    
+    def load_from_module(self, module_path: str) -> bool:
+        """
+        Load a plugin from a module path.
+        
+        Args:
+            module_path: Dotted module path (e.g., "mypackage.plugins.myplugin")
+            
+        Returns:
+            True if loaded successfully
+        """
+        try:
+            module = importlib.import_module(module_path)
+            
+            if hasattr(module, "create_plugin"):
+                plugin = module.create_plugin()
+                return self.register(plugin)
+            
+            # Look for Plugin subclass
+            for name in dir(module):
+                obj = getattr(module, name)
+                if (
+                    isinstance(obj, type)
+                    and issubclass(obj, Plugin)
+                    and obj is not Plugin
+                    and obj is not FunctionPlugin
+                ):
+                    return self.register(obj())
+            
+            return False
+        except Exception as e:
+            logger.error(f"Failed to load plugin from module {module_path}: {e}")
+            return False
+    
+    def execute_hook(
+        self,
+        hook: PluginHook,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Execute a hook across all enabled plugins.
+        
+        Args:
+            hook: The hook to execute
+            *args: Arguments to pass to hook
+            **kwargs: Keyword arguments to pass to hook
+            
+        Returns:
+            The result (may be modified by plugins)
+        """
+        result = args[0] if args else None
+        
+        for name, plugin in self._plugins.items():
+            if not self._enabled.get(name, False):
+                continue
+            
+            if hook not in plugin.info.hooks:
+                continue
+            
+            try:
+                method = getattr(plugin, hook.value, None)
+                if method:
+                    if hook == PluginHook.BEFORE_TOOL:
+                        result = method(args[0], args[1] if len(args) > 1 else {})
+                    elif hook == PluginHook.AFTER_TOOL:
+                        result = method(args[0], args[1] if len(args) > 1 else None)
+                    elif hook == PluginHook.BEFORE_AGENT:
+                        result = method(args[0], kwargs.get("context", {}))
+                    elif hook == PluginHook.AFTER_AGENT:
+                        result = method(args[0], kwargs.get("context", {}))
+                    elif hook == PluginHook.BEFORE_LLM:
+                        result = method(args[0], args[1] if len(args) > 1 else {})
+                    elif hook == PluginHook.AFTER_LLM:
+                        result = method(args[0], kwargs.get("usage", {}))
+                    else:
+                        result = method(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"Error executing hook {hook.value} in plugin {name}: {e}")
+        
+        return result
+    
+    async def async_execute_hook(
+        self,
+        hook: PluginHook,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Execute a hook across all enabled plugins asynchronously.
+        
+        Async-safe for use in async agent contexts.
+        
+        Args:
+            hook: The hook to execute
+            *args: Arguments to pass to hook
+            **kwargs: Keyword arguments to pass to hook
+            
+        Returns:
+            The result (may be modified by plugins)
+        """
+        # Use the sync version in an executor to avoid blocking
+        # This is safe because execute_hook is thread-safe with _lock
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.execute_hook(hook, *args, **kwargs)
+        )
+    
+    def get_all_tools(self) -> List[Dict[str, Any]]:
+        """Get all tools from all enabled plugins."""
+        tools = []
+        
+        for name, plugin in self._plugins.items():
+            if not self._enabled.get(name, False):
+                continue
+            
+            try:
+                plugin_tools = plugin.get_tools()
+                tools.extend(plugin_tools)
+            except Exception as e:
+                logger.error(f"Error getting tools from plugin {name}: {e}")
+        
+        return tools
+    
+    def shutdown(self):
+        """Shutdown all plugins."""
+        for name in list(self._plugins.keys()):
+            self.unregister(name)
+    
+    # =========================================================================
+    # Single-File Plugin Support (WordPress-style)
+    # =========================================================================
+    
+    def load_single_file_plugin(self, filepath: str) -> bool:
+        """
+        Load a single-file plugin with WordPress-style docstring header.
+        
+        This is the SIMPLEST plugin format - just a Python file with:
+        - A docstring header at the top with metadata
+        - @tool decorated functions for tools
+        - @add_hook decorated functions for hooks
+        
+        Example plugin file:
+            '''
+            Plugin Name: Weather Tools
+            Description: Get weather for any city
+            Version: 1.0.0
+            '''
+            
+            from xoneaiagents import tool
+            
+            @tool
+            def get_weather(city: str) -> str:
+                return f"Weather in {city}"
+        
+        Args:
+            filepath: Path to the Python plugin file
+            
+        Returns:
+            True if loaded successfully
+        """
+        from .discovery import load_plugin
+        
+        result = load_plugin(filepath)
+        if result is None:
+            return False
+        
+        # Track the loaded plugin metadata
+        name = result.get("name", "Unknown")
+        self._single_file_plugins[name] = result
+        
+        logger.info(f"Loaded single-file plugin: {name}")
+        return True
+    
+    def load_single_file_plugins_from_directory(
+        self,
+        directory: str,
+        include_defaults: bool = False
+    ) -> int:
+        """
+        Load all single-file plugins from a directory.
+        
+        Args:
+            directory: Path to scan for plugin files
+            include_defaults: Also scan default plugin directories
+            
+        Returns:
+            Number of plugins loaded
+        """
+        from .discovery import discover_and_load_plugins
+        
+        dirs = [directory] if directory else []
+        loaded = discover_and_load_plugins(dirs, include_defaults)
+        
+        # Track loaded plugins
+        for plugin_meta in loaded:
+            name = plugin_meta.get("name", "Unknown")
+            self._single_file_plugins[name] = plugin_meta
+        
+        return len(loaded)
+    
+    def auto_discover_plugins(self) -> int:
+        """
+        Auto-discover and load plugins from default directories.
+        
+        Scans:
+        - ./.xoneai/plugins/ (project-level)
+        - ~/.xoneai/plugins/ (user-level)
+        
+        Returns:
+            Number of plugins loaded
+        """
+        from .discovery import discover_and_load_plugins
+        
+        loaded = discover_and_load_plugins(plugin_dirs=None, include_defaults=True)
+        
+        for plugin_meta in loaded:
+            name = plugin_meta.get("name", "Unknown")
+            self._single_file_plugins[name] = plugin_meta
+        
+        return len(loaded)
+    
+    def list_single_file_plugins(self) -> List[Dict[str, Any]]:
+        """List all loaded single-file plugins."""
+        return list(self._single_file_plugins.values())
+    
+    def get_single_file_plugin(self, name: str) -> Optional[Dict[str, Any]]:
+        """Get a single-file plugin by name."""
+        return self._single_file_plugins.get(name)
+
+
+# Global plugin manager instance
+_default_manager: Optional[PluginManager] = None
+
+
+def get_plugin_manager() -> PluginManager:
+    """Get the global plugin manager."""
+    global _default_manager
+    if _default_manager is None:
+        _default_manager = PluginManager()
+    return _default_manager

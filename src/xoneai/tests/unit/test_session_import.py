@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""
+Test script to verify session.py import works correctly (which imports Memory)
+"""
+
+import sys
+import os
+
+# Add the xoneai-agents source to Python path
+sys.path.insert(0, '/home/runner/work/XoneAI/XoneAI/src/xoneai-agents')
+
+try:
+    from xoneaiagents.session import Session
+    print('SUCCESS: Session import works correctly')
+    print('Session class found:', Session)
+    
+    # This was the failing import chain
+    from xoneaiagents.agents.agents import Agent, Task, Agents
+    print('SUCCESS: Agent, Task, Agents import works correctly')
+    
+except ImportError as e:
+    print('ERROR:', e)
+    import traceback
+    traceback.print_exc()
+except Exception as e:
+    print('UNEXPECTED ERROR:', e)
+    import traceback
+    traceback.print_exc()

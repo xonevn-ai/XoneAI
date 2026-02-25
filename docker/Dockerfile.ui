@@ -1,0 +1,33 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create xone config directory
+RUN mkdir -p /root/.xone
+
+# Install Python packages (using latest versions)
+RUN pip install --no-cache-dir \
+    xoneai_tools \
+    "xoneai>=4.5.15" \
+    "xoneai[ui]" \
+    "xoneai[crewai]"
+
+# Copy application code
+COPY . .
+
+# Set environment variables for directory management
+ENV XONE_CONFIG_DIR=/root/.xone
+ENV CHAINLIT_CONFIG_DIR=/root/.xone
+ENV CHAINLIT_DB_DIR=/root/.xone
+ENV DOCKER_CONTAINER=true
+
+# Default command (will be overridden by docker-compose)
+CMD ["xoneai", "ui"]

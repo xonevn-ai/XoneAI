@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install xoneai with bot dependencies
+RUN pip install --no-cache-dir xoneai[bot]
+
+# Copy config (user provides at runtime via volume or build arg)
+COPY bot.yaml /app/bot.yaml
+
+# Run the bot
+CMD ["python", "-m", "xoneai", "bot", "start", "--config", "/app/bot.yaml"]

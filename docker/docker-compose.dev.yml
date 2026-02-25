@@ -1,0 +1,190 @@
+version: '3.8'
+
+# Development Docker Compose Configuration
+# Extends the main docker-compose.yml with development-specific settings
+
+services:
+  # Development UI Service with hot reload
+  ui-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - xone_data:/root/.xone
+      - ../src:/app/src:rw
+      - ../examples:/app/examples:rw
+      - ../docs:/app/docs:ro
+    ports:
+      - "${UI_PORT:-8082}:8082"
+    environment:
+      FLASK_ENV: development
+      CHAINLIT_PORT: "8082"
+      CHAINLIT_HOST: "0.0.0.0"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET}
+      XONE_CONFIG_DIR: /root/.xone
+      CHAINLIT_CONFIG_DIR: /root/.xone
+      CHAINLIT_DB_DIR: /root/.xone
+      DEBUG: "true"
+      DEV_MODE: "true"
+      PYTHONPATH: /app/src
+    command: xoneai ui --host 0.0.0.0 --reload
+    networks:
+      - xone_network
+    depends_on:
+      - database
+
+  # Development Chat Service
+  chat-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - xone_data:/root/.xone
+      - ../src:/app/src:rw
+      - ../examples:/app/examples:rw
+    ports:
+      - "${CHAT_PORT:-8083}:8083"
+    environment:
+      CHAINLIT_PORT: "8083"
+      CHAINLIT_HOST: "0.0.0.0"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET}
+      XONE_CONFIG_DIR: /root/.xone
+      CHAINLIT_CONFIG_DIR: /root/.xone
+      CHAINLIT_DB_DIR: /root/.xone
+      DEBUG: "true"
+      DEV_MODE: "true"
+      PYTHONPATH: /app/src
+    command: xoneai chat --host 0.0.0.0 --port 8083 --reload
+    networks:
+      - xone_network
+    depends_on:
+      - database
+
+  # Development API Service with hot reload
+  api-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - xone_data:/root/.xone
+      - ../src:/app/src:rw
+      - ../examples:/app/examples:rw
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      XONE_CONFIG_DIR: /root/.xone
+      FLASK_ENV: development
+      DEBUG: "true"
+      DEV_MODE: "true"
+      PYTHONPATH: /app/src
+    command: python -m flask --app api run --host 0.0.0.0 --port 8080 --debug
+    networks:
+      - xone_network
+    depends_on:
+      - database
+
+  # Development Jupyter Notebook Service
+  jupyter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - xone_data:/root/.xone
+      - ../src:/app/src:rw
+      - ../examples:/app/examples:rw
+      - ../docs:/app/docs:rw
+    ports:
+      - "8888:8888"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      XONE_CONFIG_DIR: /root/.xone
+      JUPYTER_ENABLE_LAB: "yes"
+      PYTHONPATH: /app/src
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --LabApp.token='' --LabApp.password=''
+    networks:
+      - xone_network
+
+  # Development Testing Service
+  test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - ../src:/app/src:rw
+      - ../tests:/app/tests:rw
+      - xone_data:/root/.xone
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      XONE_CONFIG_DIR: /root/.xone
+      PYTHONPATH: /app/src
+      PYTEST_CURRENT_TEST: "true"
+    command: python -m pytest tests/ -v
+    networks:
+      - xone_network
+    profiles:
+      - test
+
+  # Standalone database for development
+  database:
+    security_opt:
+      - "no-new-privileges:true"
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: xoneai_dev
+      POSTGRES_USER: xoneai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xoneai_dev_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/tmp
+    ports:
+      - "5432:5432"
+    networks:
+      - xone_network
+    profiles:
+      - database
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - xone_network
+    profiles:
+      - cache
+
+  # Development documentation server
+  docs:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - ../docs:/app/docs:rw
+      - ../README.md:/app/README.md:ro
+    ports:
+      - "8000:8000"
+    command: sh -c "cd docs && mkdocs serve --dev-addr 0.0.0.0:8000"
+    networks:
+      - xone_network
+    profiles:
+      - docs
+
+volumes:
+  xone_data:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  xone_network:
+    driver: bridge

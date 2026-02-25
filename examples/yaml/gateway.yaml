@@ -1,0 +1,57 @@
+# XoneAI Multi-Bot Gateway Configuration
+# Start with: xoneai gateway start --config gateway.yaml
+
+gateway:
+  host: "127.0.0.1"
+  port: 8765
+
+agents:
+  personal:
+    name: "Personal Assistant"
+    instructions: "You are a friendly personal assistant. Help users with everyday tasks."
+    llm: "gpt-4o-mini"
+
+  support:
+    name: "Support Agent"
+    instructions: "You are a customer support agent. Be professional and helpful."
+    llm: "gpt-4o-mini"
+
+channels:
+  telegram:
+    token: "${TELEGRAM_BOT_TOKEN}"
+    routing:
+      dm: "personal"
+      group: "support"
+      default: "personal"
+
+  discord:
+    token: "${DISCORD_BOT_TOKEN}"
+    routing:
+      dm: "personal"
+      channel: "support"
+      default: "support"
+
+  slack:
+    token: "${SLACK_BOT_TOKEN}"
+    app_token: "${SLACK_APP_TOKEN}"
+    routing:
+      dm: "personal"
+      channel: "support"
+      default: "support"
+
+  whatsapp:
+    token: "${WHATSAPP_ACCESS_TOKEN}"
+    phone_number_id: "${WHATSAPP_PHONE_NUMBER_ID}"
+    verify_token: "${WHATSAPP_VERIFY_TOKEN}"
+    webhook_port: 8080
+    routing:
+      dm: "personal"
+      default: "personal"
+
+  # WhatsApp Web mode (experimental, no tokens needed):
+  # whatsapp:
+  #   mode: web
+  #   creds_dir: "~/.xoneai/whatsapp"
+  #   routing:
+  #     dm: "personal"
+  #     default: "personal"
