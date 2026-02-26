@@ -1,14 +1,14 @@
 {
-  "version": "1.5.5",
-  "lastUpdated": "2026-02-05",
+  "version": "1.0.5",
+  "lastUpdated": "2026-02-26",
   "generatedBy": "xoneai._dev.parity.generator",
   "sourceOfTruth": "Python SDK (xoneaiagents)",
   "status": "PARITY_ACHIEVED",
   "summary": {
-    "pythonCoreFeatures": 282,
-    "rustFeatures": 666,
-    "gapCount": 7,
-    "parityPercentage": 236.2
+    "pythonCoreFeatures": 291,
+    "rustFeatures": 667,
+    "gapCount": 16,
+    "parityPercentage": 229.2
   },
   "pythonCoreSDK": {
     "exports": [
@@ -31,6 +31,7 @@
       "AudioConfig",
       "AuthProfile",
       "AutoAgents",
+      "AutoApproveBackend",
       "AutoRagAgent",
       "AutoRagConfig",
       "AutonomyConfig",
@@ -38,6 +39,8 @@
       "BotChannel",
       "BotConfig",
       "BotMessage",
+      "BotOSConfig",
+      "BotOSProtocol",
       "BotProtocol",
       "BotUser",
       "CACHING_PRESETS",
@@ -52,6 +55,7 @@
       "CodeExecutionStep",
       "ConditionProtocol",
       "ConfigValidationError",
+      "ConsoleBackend",
       "ContextAgent",
       "ContextConfig",
       "ContextEvent",
@@ -68,10 +72,13 @@
       "DeepResearchResponse",
       "DefaultsConfig",
       "DictCondition",
+      "DoomLoopDetector",
       "EXECUTION_PRESETS",
       "EmbeddingAgent",
       "EmbeddingConfig",
       "EmbeddingResult",
+      "EscalationPipeline",
+      "EscalationStage",
       "EventType",
       "ExecutionConfig",
       "ExecutionPreset",
@@ -135,6 +142,8 @@
       "OCRAgent",
       "OCRConfig",
       "OUTPUT_PRESETS",
+      "ObservabilityEventType",
+      "ObservabilityHooks",
       "OptimizerStrategy",
       "OutputConfig",
       "OutputPreset",
@@ -154,7 +163,6 @@
       "PluginParseError",
       "PluginProtocol",
       "PluginsConfig",
-      "XoneConfig",
       "PromptExpanderAgent",
       "Provider",
       "ProviderStatus",
@@ -214,6 +222,7 @@
       "WebSearchProvider",
       "Workflow",
       "WorkflowContext",
+      "XoneConfig",
       "aembed",
       "aembedding",
       "aembeddings",
@@ -586,7 +595,6 @@
       "PARITY_WORKING_FRAMES",
       "PARITY_WORKING_PHASES",
       "PLANNING_PRESETS",
-      "XONE_COLORS",
       "Parallel",
       "ParityAgentOSProtocol",
       "ParityAgents",
@@ -636,8 +644,6 @@
       "PolicyEngine",
       "PolicyResult",
       "PolicyRule",
-      "XoneColors",
-      "XoneConfig",
       "Process",
       "PromptExpanderAgent",
       "PromptExpanderAgentBuilder",
@@ -756,6 +762,7 @@
       "Tool",
       "ToolCall",
       "ToolCallData",
+      "ToolCallFunction",
       "ToolCallResult",
       "ToolDefinition",
       "ToolPluginProtocol",
@@ -796,6 +803,9 @@
       "Workflow",
       "WorkflowContext",
       "WorkflowStepExecutionPreset",
+      "XONE_COLORS",
+      "XoneColors",
+      "XoneConfig",
       "add_approval_callback",
       "add_display_callback",
       "add_error_log",
@@ -1051,7 +1061,6 @@
         "WebSearchProvider"
       ],
       "config_loader": [
-        "AutoRagConfig",
         "SessionConfig"
       ],
       "context": [
@@ -1292,7 +1301,6 @@
         "PARITY_WORKING_FRAMES",
         "PARITY_WORKING_PHASES",
         "PLANNING_PRESETS",
-        "XONE_COLORS",
         "Parallel",
         "ParityAgentOSProtocol",
         "ParityAgents",
@@ -1340,8 +1348,6 @@
         "PolicyEngine",
         "PolicyResult",
         "PolicyRule",
-        "XoneColors",
-        "XoneConfig",
         "Process",
         "ProtocolLlmResponse",
         "ProtocolToolCall",
@@ -1466,6 +1472,9 @@
         "WebSearchCall",
         "Workflow",
         "WorkflowStepExecutionPreset",
+        "XONE_COLORS",
+        "XoneColors",
+        "XoneConfig",
         "add_approval_callback",
         "add_display_callback",
         "add_error_log",
@@ -1657,6 +1666,7 @@
         "OpenAiProvider",
         "Role",
         "ToolCall",
+        "ToolCallFunction",
         "Usage"
       ],
       "mcp": [
@@ -1672,6 +1682,7 @@
       "planning": [],
       "plugins": [
         "PluginRegistry",
+        "ToolDefinition",
         "disable_plugins",
         "enable_plugins",
         "get_plugin_manager",
@@ -1685,6 +1696,9 @@
       "sandbox": [],
       "session": [],
       "skills": [],
+      "specialized": [
+        "AutoRagConfig"
+      ],
       "specialized_agents": [],
       "streaming": [],
       "task": [],
@@ -1693,7 +1707,6 @@
       "tools": [
         "FunctionTool",
         "Tool",
-        "ToolDefinition",
         "ToolRegistry",
         "ToolResult"
       ],
@@ -2811,6 +2824,15 @@
         "category": "agents"
       },
       {
+        "feature": "AutoApproveBackend",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "high",
+        "status": "TODO",
+        "category": "app"
+      },
+      {
         "feature": "AutoRagAgent",
         "python": true,
         "rust": true,
@@ -2835,7 +2857,7 @@
         "priority": "P3",
         "effort": "low",
         "status": "DONE",
-        "category": "config"
+        "category": "other"
       },
       {
         "feature": "AutonomyLevel",
@@ -2871,6 +2893,24 @@
         "priority": "P3",
         "effort": "high",
         "status": "DONE",
+        "category": "bots"
+      },
+      {
+        "feature": "BotOSConfig",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "low",
+        "status": "TODO",
+        "category": "bots"
+      },
+      {
+        "feature": "BotOSProtocol",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "medium",
+        "status": "TODO",
         "category": "bots"
       },
       {
@@ -2944,6 +2984,15 @@
         "effort": "low",
         "status": "DONE",
         "category": "config"
+      },
+      {
+        "feature": "ConsoleBackend",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "high",
+        "status": "TODO",
+        "category": "app"
       },
       {
         "feature": "ContextEvent",
@@ -3027,6 +3076,15 @@
         "category": "conditions"
       },
       {
+        "feature": "DoomLoopDetector",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "high",
+        "status": "TODO",
+        "category": "other"
+      },
+      {
         "feature": "EXECUTION_PRESETS",
         "python": true,
         "rust": true,
@@ -3043,6 +3101,24 @@
         "effort": "low",
         "status": "DONE",
         "category": "embedding"
+      },
+      {
+        "feature": "EscalationPipeline",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "high",
+        "status": "TODO",
+        "category": "other"
+      },
+      {
+        "feature": "EscalationStage",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "high",
+        "status": "TODO",
+        "category": "other"
       },
       {
         "feature": "EventType",
@@ -3360,6 +3436,24 @@
         "category": "config"
       },
       {
+        "feature": "ObservabilityEventType",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "high",
+        "status": "TODO",
+        "category": "other"
+      },
+      {
+        "feature": "ObservabilityHooks",
+        "python": true,
+        "rust": false,
+        "priority": "P3",
+        "effort": "high",
+        "status": "TODO",
+        "category": "other"
+      },
+      {
         "feature": "OutputConfig",
         "python": true,
         "rust": true,
@@ -3460,15 +3554,6 @@
       },
       {
         "feature": "PluginsConfig",
-        "python": true,
-        "rust": true,
-        "priority": "P3",
-        "effort": "low",
-        "status": "DONE",
-        "category": "config"
-      },
-      {
-        "feature": "XoneConfig",
         "python": true,
         "rust": true,
         "priority": "P3",
@@ -3689,6 +3774,15 @@
         "rust": true,
         "priority": "P3",
         "effort": "high",
+        "status": "DONE",
+        "category": "config"
+      },
+      {
+        "feature": "XoneConfig",
+        "python": true,
+        "rust": true,
+        "priority": "P3",
+        "effort": "low",
         "status": "DONE",
         "category": "config"
       },

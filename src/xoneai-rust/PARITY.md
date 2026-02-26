@@ -1,16 +1,16 @@
 # Rust Feature Parity Tracker
 
-> **Python Features:** 282 | **Rust Features:** 666 | **Parity:** 100.0%
+> **Python Features:** 291 | **Rust Features:** 667 | **Parity:** 96.9%
 
 ## Summary
 
 | Metric | Count |
 |--------|-------|
-| Python Core Features | 282 |
-| Rust Features | 666 |
-| **Actual Gap Count** | **0** |
+| Python Core Features | 291 |
+| Rust Features | 667 |
+| **Actual Gap Count** | **9** |
 | Language Limitations (N/A) | 6 |
-| **Parity** | **100.0%** |
+| **Parity** | **96.9%** |
 
 ## Implemented Features
 
@@ -301,7 +301,6 @@
 - ✅ `PARITY_WORKING_FRAMES`
 - ✅ `PARITY_WORKING_PHASES`
 - ✅ `PLANNING_PRESETS`
-- ✅ `XONE_COLORS`
 - ✅ `Parallel`
 - ✅ `ParityAgentOSProtocol`
 - ✅ `ParityAgents`
@@ -351,8 +350,6 @@
 - ✅ `PolicyEngine`
 - ✅ `PolicyResult`
 - ✅ `PolicyRule`
-- ✅ `XoneColors`
-- ✅ `XoneConfig`
 - ✅ `Process`
 - ✅ `PromptExpanderAgent`
 - ✅ `PromptExpanderAgentBuilder`
@@ -471,6 +468,7 @@
 - ✅ `Tool`
 - ✅ `ToolCall`
 - ✅ `ToolCallData`
+- ✅ `ToolCallFunction`
 - ✅ `ToolCallResult`
 - ✅ `ToolDefinition`
 - ✅ `ToolPluginProtocol`
@@ -511,6 +509,9 @@
 - ✅ `Workflow`
 - ✅ `WorkflowContext`
 - ✅ `WorkflowStepExecutionPreset`
+- ✅ `XONE_COLORS`
+- ✅ `XoneColors`
+- ✅ `XoneConfig`
 - ✅ `add_approval_callback`
 - ✅ `add_display_callback`
 - ✅ `add_error_log`
@@ -691,6 +692,18 @@ These Python features cannot be directly implemented in Rust due to reserved key
 - ⚠️ `obs` → Use `parity_obs` instead
 - ⚠️ `tools` (Rust reserved/module conflict)
 - ⚠️ `workflows` (Rust reserved/module conflict)
+
+## Missing Features
+
+- ❌ `AutoApproveBackend`
+- ❌ `BotOSConfig`
+- ❌ `BotOSProtocol`
+- ❌ `ConsoleBackend`
+- ❌ `DoomLoopDetector`
+- ❌ `EscalationPipeline`
+- ❌ `EscalationStage`
+- ❌ `ObservabilityEventType`
+- ❌ `ObservabilityHooks`
 
 ---
 
