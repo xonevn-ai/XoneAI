@@ -1050,8 +1050,8 @@ Methods:
 
 Types/Exports:
 ```ts
-export { Agent, AgentTeam, Agents, XoneAIAgents, Router } from "./agent";
-export type { AgentTeamConfig, XoneAIAgentsConfig, SimpleAgentConfig, SimpleRouteConfig, SimpleRouterConfig } from "./agent";
+export { Agent, AgentTeam, Agents, Router, XoneAIAgents } from "./agent";
+export type { AgentTeamConfig, SimpleAgentConfig, SimpleRouteConfig, SimpleRouterConfig, XoneAIAgentsConfig } from "./agent";
 export { AudioAgent, createAudioAgent } from "./agent/audio";
 export type { AudioAgentConfig, AudioProvider, AudioSpeakOptions, AudioSpeakResult, AudioTranscribeOptions, AudioTranscribeResult } from "./agent/audio";
 export { ContextAgent, createContextAgent } from "./agent/context";
@@ -1192,7 +1192,7 @@ export { // Subagent Tool (agent-as-tool pattern)
   SubagentTool, BaseTool, FunctionTool, ToolRegistry, ToolResult, ToolValidationError, createDelegator, createSubagentTool, createSubagentTools, createTool, getRegistry, getTool, registerTool, tool, validateTool } from "./tools";
 export { airweaveSearch, bedrockBrowserClick, bedrockBrowserFill, bedrockBrowserNavigate, bedrockCodeInterpreter, codeExecution, codeMode, createCustomTool, exaSearch, firecrawlCrawl, firecrawlScrape, parallelSearch, perplexitySearch, registerCustomTool, registerLocalTool, registerNpmTool, superagentGuard, superagentRedact, superagentVerify, tavilyCrawl, tavilyExtract, tavilySearch, valyuBioSearch, valyuCompanyResearch, valyuEconomicsSearch, valyuFinanceSearch, valyuPaperSearch, valyuPatentSearch, valyuSecSearch, valyuWebSearch } from "./tools/builtins";
 export { MissingDependencyError, MissingEnvVarError, ToolsRegistry, composeMiddleware, createLoggingMiddleware, createRateLimitMiddleware, createRedactionMiddleware, createRetryMiddleware, createTimeoutMiddleware, createToolsRegistry, createTracingMiddleware, createValidationMiddleware, getToolsRegistry, resetToolsRegistry } from "./tools/registry";
-export type { InstallHints, XoneTool, RedactionHooks, RegisteredTool, ToolCapabilities, ToolExecutionContext, ToolExecutionResult, ToolFactory, ToolHooks, ToolInstallStatus, ToolLimits, ToolLogger, ToolMetadata, ToolMiddleware, ToolParameterProperty, ToolParameterSchema } from "./tools/registry";
+export type { InstallHints, RedactionHooks, RegisteredTool, ToolCapabilities, ToolExecutionContext, ToolExecutionResult, ToolFactory, ToolHooks, ToolInstallStatus, ToolLimits, ToolLogger, ToolMetadata, ToolMiddleware, ToolParameterProperty, ToolParameterSchema, XoneTool } from "./tools/registry";
 export { registerBuiltinTools, tools } from "./tools/tools";
 export { // Classes
   TraceSink, // Enums
