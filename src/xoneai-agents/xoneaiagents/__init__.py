@@ -495,13 +495,17 @@ def _custom_handler(name, cache):
         cache['Agents'] = value
         return value
     
-    # Task removed in v4.0.0 - use Task instead
-    if name == "Task":
-        raise ImportError(
-            "Task has been removed in v4.0.0. Use Task instead.\n"
-            "Migration: Replace 'from xoneaiagents import Task' with 'from xoneaiagents import Task'\n"
-            "Task supports all Task features including action, handler, loop_over, etc."
+    # WorkflowStep merged into Task - provide backward compatibility
+    if name == "WorkflowStep":
+        warnings.warn(
+            "'WorkflowStep' has been renamed/merged into 'Task'. "
+            "Please use 'Task' going forward as 'WorkflowStep' may be removed in future versions.",
+            DeprecationWarning,
+            stacklevel=2
         )
+        value = lazy_import('xoneaiagents.task.task', 'Task', cache)
+        cache['WorkflowStep'] = value
+        return value
     
     # Module imports (return the module itself)
     if name == 'memory':
