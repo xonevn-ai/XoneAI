@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  # Python Formatting (Ruff)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [ --fix ]
+      - id: ruff-format
+
+  # TypeScript Formatting (Prettier)
+  - repo: https://github.com/prettier/prettier
+    rev: 3.2.5
+    hooks:
+      - id: prettier
+        files: \.(ts|tsx|js|jsx|json|md)$
+
+  # Rust Formatting (Rustfmt)
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        args: ['--manifest-path', 'src/xoneai-rust/Cargo.toml']
+      - id: clippy
+        args: ['--manifest-path', 'src/xoneai-rust/Cargo.toml']
