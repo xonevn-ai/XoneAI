@@ -73,8 +73,9 @@ jobs:
         from xoneaiagents.workflows import WorkflowOutputConfig
         
         w = Workflow(name='test')
-        s1 = WorkflowStep(name='step1')
-        s2 = WorkflowStep(name='step2', context=['step1'])
+        # WorkflowStep is now an alias for Task and requires description, action, or handler
+        s1 = WorkflowStep(name='step1', description='First step')
+        s2 = WorkflowStep(name='step2', description='Second step')
         print('Workflow:', w.name)
         print('Steps:', s1.name, s2.name)
         

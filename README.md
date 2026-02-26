@@ -26,6 +26,15 @@ XoneAI is a production-ready Multi-AI Agents framework with self-reflection, des
   </a>
 </div>
 
+
+<div align="center">
+
+# Xone AI
+
+> **A brand-new AI Agents framework based on [PraisonAI](https://github.com/MervinPraison/PraisonAI).**  
+> *This is our first revision, intended to learn how it works and kick-start our framework. We appreciate the original creator. We simply want to create our own version and maintain it going forward. The original license belongs to PraisonAI. We will do our best to contribute back to the community and the project as much as possible.*
+
+</div>
 ---
 
 > **Quick Paths:**
