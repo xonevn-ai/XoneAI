@@ -15,13 +15,6 @@
 <a href="https://registry.modelcontextprotocol.io/servers/io.github.xonevn-ai/xoneai"><img src="https://img.shields.io/badge/MCP-Registry-blue" alt="MCP Registry" /></a>
 </p>
 
-<div align="center">
-
-# Xone AI
-
-<a href="https://trendshift.io/repositories/9130" target="_blank"><img src="https://trendshift.io/api/badge/repositories/9130" alt="xonevn-ai%2FXoneAI | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-
-</div>
 
 XoneAI is a production-ready Multi-AI Agents framework with self-reflection, designed to create AI Agents to automate and solve problems ranging from simple tasks to complex challenges. It provides a low-code solution to streamline the building and management of multi-agent LLM systems, emphasising simplicity, customisation, and effective human-agent collaboration.
 
