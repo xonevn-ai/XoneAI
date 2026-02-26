@@ -19,7 +19,8 @@
 
 # Xone AI
 
-<a href="https://trendshift.io/repositories/9130" target="_blank"><img src="https://trendshift.io/api/badge/repositories/9130" alt="xonevn-ai%2FXoneAI | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+> **A brand-new AI Agents framework based on [PraisonAI](https://github.com/MervinPraison/PraisonAI).**  
+> *This is our first revision, intended to learn how it works and kick-start our framework. We appreciate the original creator. We simply want to create our own version and maintain it going forward. The original license belongs to PraisonAI. We will do our best to contribute back to the community and the project as much as possible.*
 
 </div>
 

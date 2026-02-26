@@ -1,5 +1,5 @@
 [project]
-name = "XoneAI"
+name = "xoneai"
 dynamic = ["version"]
 description = "XoneAI is an AI Agents Framework with Self Reflection. XoneAI application combines XoneAI Agents, AutoGen, and CrewAI into a low-code solution for building and managing multi-agent LLM systems, focusing on simplicity, customisation, and efficient human-agent collaboration."
 readme = "README.md"
@@ -12,7 +12,7 @@ dependencies = [
     "rich>=13.7",
     "markdown>=3.5",
     "pyparsing>=3.0.0",
-    "xoneaiagents>=1.0.2",
+    "xoneaiagents>=1.0.3",
     "python-dotenv>=0.19.0",
     "litellm>=1.81.0",
     "PyYAML>=6.0",
